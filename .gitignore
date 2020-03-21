@@ -1,4 +1,6 @@
 virus
+*.svg
+*.pdf
 *.dat
 *.hi
 *.o

@@ -93,7 +93,7 @@ main = do
     let pars = parse args
     if pars == []
       then putStrLn "usage: virus <R> <N> <s>\nR replication number\nN population size\ns number of steps\ni initial infected" >> exitWith(ExitFailure 1)
-      else putStrLn $ "# R=" ++ pars !! 0 ++ ", N=" ++ pars !! 1 ++ ", s=" ++ pars !! 2
+      else putStrLn $ "# R=" ++ pars !! 0 ++ ", N=" ++ pars !! 1 ++ ", s=" ++ pars !! 2 ++ ", i=" ++ pars !!3
     let rIni = read . head $ pars :: Double
     let (nTot:steps:iIni:[]) = map read . tail $ pars :: [Int]
 --    let results = simple rIni steps
