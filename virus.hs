@@ -3,8 +3,12 @@ import System.Exit
 import Text.Printf
 import Data.Char
 
--- this programme calculates a few simple virus spread models.
+-- This programme calculates a few simple virus spread models.
+-- It is meant as a toy problem to illustrate exponential growth
+-- and limits to growth in a population that become immune.
 
+-- MIT License
+-- Copyright (c) 2020 gerald schenk
 
 -- simple exponential growth, each step n is one incubation period
 -- simple :: Double -> Int -> Int
@@ -15,8 +19,8 @@ simple r i n = round (r**a)
 
 
 -- simple accumulated
-simpleAcc :: Double -> Int -> Int -> Int
-simpleAcc r i = (foldl (+) 0) .map(simple r i).l
+simpleAcc :: Double -> Int -> Int -> Int -> Int
+simpleAcc r i p = (+p) . (foldl (+) 0) . map(simple r i) . l
    where l n = [0..n]
 
 
@@ -25,14 +29,12 @@ simpleAcc r i = (foldl (+) 0) .map(simple r i).l
 -- and n0 is total population
 -- assuming no re-infections
 
-
 -- get difference of last two list elements
 tailDiff :: Num a => [a] -> a
 tailDiff [] = 0
 tailDiff (n:[]) = n
 tailDiff [m,n] = n-m
 tailDiff (_:ns) = tailDiff ns
-
 
 -- accumulated new infected from list of infected
 accFromList :: (RealFrac a, Integral b) => a -> b -> [b] -> b
@@ -48,15 +50,14 @@ accFromList r0 n0 is =  f n
              | otherwise = n
 
 -- accumulated cases new, and old, with pop limit
-limitedAcc :: (RealFrac a, Integral b) => a -> b -> b -> Int -> [b]
-limitedAcc r0 n0 i0 n = last . take n . iterate f $ [i0]
+limitedAcc :: (RealFrac a, Integral b) => a -> b -> b -> b-> Int -> [b]
+limitedAcc r0 n0 i0 p0 s = last . take s . iterate f $ [p0, p0+i0]
     where f is = is ++ [accFromList r0 n0 is]
 
 -- new cases with population limit
---limited :: Integral b => Double -> b -> Int -> Int -> [b]
-limited :: (RealFrac a, Integral b) => a -> b -> b -> Int -> [b]
-limited r0 n0 i0 n = map f [1..n]
-    where f = tailDiff . limitedAcc r0 n0 i0
+limited :: (RealFrac a, Integral b) => a -> b -> b -> b -> Int -> [b]
+limited r0 n0 i0 p0 s = map f [1..s]
+    where f = tailDiff . limitedAcc r0 n0 i0 p0
 
 
 -- transpose list of lists
@@ -66,13 +67,13 @@ transpose xs = (map head xs) : transpose (map tail xs)
 
 
 -- calculate results
-results :: (Double, Int, Int, Int, Double) -> [[Int]]
-results (r0, n, s, i, _) = ss : sim : simA : lim : limA : []
+results :: (Double, Int, Int, Int, Int) -> [[Int]]
+results (r0, n, s, i, p) = ss : sim : simA : lim : limA : []
     where ss = [0..s]
           sim = map (simple r0 i) ss
-          simA = map (simpleAcc r0 i) ss
-          lim = limited r0 n i (s+1)
-          limA = limitedAcc r0 n i (s+1)
+          simA = map (simpleAcc r0 i p) ss
+          lim = limited r0 n i p (s+1)
+          limA = tail . limitedAcc r0 n i p $ (s+1)
 
 
 -- Output
@@ -90,7 +91,7 @@ head2 = ["Step","Infected", "Accumm.", "Infected", "Acc'd" ]
 helpText = "usage: virus <R0> <N> <s> [<i> [<p>]] \n\
     \R0 base replication number\n\
     \N population size\n\ \s number of steps\n\
-    \i0 initial infected\n\ \p0 ratio of immune population"
+    \i0 initial infected (ratio or absolute)\n\ \p0 initial immune population (ratio or absolute)"
 
 showParms :: [String] -> String
 showParms (r:n:s:[]) = showParms (r:n:s:"1":"0":[])
@@ -102,28 +103,33 @@ showParms (r:n:s:i:p:[]) = "#R0=" ++ r ++ " N=" ++ n ++ " s=" ++ s ++ " i0=" ++ 
 
 -- comprehend numbers with kilo, Mega, Giga suffix
 kiloToInt :: String -> Int
-kiloToInt cs
+kiloToInt = round . kiloToDouble
+
+kiloToDouble :: String -> Double
+kiloToDouble cs
     | elem (last cs) ['0'..'9'] = read cs
     | otherwise = pref cs * suf cs
     where pref = read . init
-          suf = floor . f . last
+          suf = f . last
           f 'k' = 1e3
           f 'M' = 1e6
           f 'G' = 1e9
           f  _ = error "Not a number."
 
 -- input comprehension
-parse :: [String] -> (Double,Int,Int,Int,Double) 
+parse :: [String] -> (Double,Int,Int,Int,Int) 
 parse (a:b:c:[]) = parse [a,b,c,"1","0"]
 parse (a:b:c:e:[]) = parse [a,b,c,e,"0"]
-parse (a:b:c:d:e:_) 
-    | p < 1 && p >= 0 = (r0, n0, s, i0, p)
-    | otherwise = error "Ratio of immune population not in range 0 <= P < 1"
+parse (a:b:c:d:e:_) = (r0, n0, s, f i, f p)
     where r0 = read a :: Double
           n0 = kiloToInt b
           s = read c :: Int
-          i0 = kiloToInt d
-          p = read e :: Double
+          i = kiloToDouble d
+          p = kiloToDouble e
+          f x
+            | x < 1 && x >= 0 = round . (* fromIntegral n0) $ x
+            | floor x == ceiling x = floor x -- input was integer number of total population
+            | otherwise = error "Ratio of infected/immune population not in range 0 <= P < 1"
 parse _ = error "Wrong number of arguments"
 
 
