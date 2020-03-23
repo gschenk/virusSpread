@@ -21,8 +21,8 @@ simpleAcc r i = (foldl (+) 0) .map(simple r i).l
 
 
 -- population limited accumulated growth
--- where rIni is initial reproduction rate
--- and nTot is total population
+-- where r0 is initial reproduction rate
+-- and n0 is total population
 -- assuming no re-infections
 
 
@@ -39,24 +39,24 @@ accFromList :: (RealFrac a, Integral b) => a -> b -> [b] -> b
 accFromList _ _ [] = 0
 accFromList _ 0 is = 0
 accFromList 0 _ is = last is
-accFromList rIni nTot is =  f n
+accFromList r0 n0 is =  f n
    where i = tailDiff is -- number infectious cases
-         r = (*rIni).(+1).(/ (fromIntegral nTot)).negate.fromIntegral.last $ is -- effective replication number
+         r = (*r0).(+1).(/ (fromIntegral n0)).negate.fromIntegral.last $ is -- effective replication number
          n = (+ last is) . round . (* r) . fromIntegral $ i -- newly infected
          f n
-             | n > nTot = nTot
+             | n > n0 = n0
              | otherwise = n
 
 -- accumulated cases new, and old, with pop limit
 limitedAcc :: (RealFrac a, Integral b) => a -> b -> b -> Int -> [b]
-limitedAcc rIni nTot iIni n = last . take n . iterate f $ [iIni]
-    where f is = is ++ [accFromList rIni nTot is]
+limitedAcc r0 n0 i0 n = last . take n . iterate f $ [i0]
+    where f is = is ++ [accFromList r0 n0 is]
 
 -- new cases with population limit
 --limited :: Integral b => Double -> b -> Int -> Int -> [b]
 limited :: (RealFrac a, Integral b) => a -> b -> b -> Int -> [b]
-limited rIni nTot iIni n = map f [1..n]
-    where f = tailDiff . limitedAcc rIni nTot iIni
+limited r0 n0 i0 n = map f [1..n]
+    where f = tailDiff . limitedAcc r0 n0 i0
 
 
 -- transpose list of lists
@@ -67,12 +67,12 @@ transpose xs = (map head xs) : transpose (map tail xs)
 
 -- calculate results
 results :: (Double, Int, Int, Int, Double) -> [[Int]]
-results (r,n,s,i,_) = ss : sim : simA : lim : limA : []
+results (r0, n, s, i, _) = ss : sim : simA : lim : limA : []
     where ss = [0..s]
-          sim = map (simple r i) ss
-          simA = map (simpleAcc r i) ss
-          lim = limited r n i (s+1)
-          limA = limitedAcc r n i (s+1)
+          sim = map (simple r0 i) ss
+          simA = map (simpleAcc r0 i) ss
+          lim = limited r0 n i (s+1)
+          limA = limitedAcc r0 n i (s+1)
 
 
 -- Output
