@@ -1,6 +1,7 @@
 import System.Environment
 import System.Exit
 import Text.Printf
+import Data.Char
 
 -- this programme calculates a few simple virus spread models.
 
@@ -72,6 +73,7 @@ results r n s i = ss : sim : simA : lim : limA : []
           lim = limited r n i (s+1)
           limA = limitedAcc r n i (s+1)
 
+
 -- format pretty output
 pretty :: [[Int]] -> String
 pretty = unlines . (header head1:) . (header head2:) . map f
@@ -82,9 +84,21 @@ header = ((++)"#").unwords .  map (printf "%10s")
 head1 = ["","Simple Model","","Population Limited Model"]
 head2 = ["Step","Infected", "Accumm.", "Infected", "Acc'd" ]
 
-
+-- input comprehension
 parse (r:n:s:i:_) = [r,n,s,i]
 parse _ = []
+
+-- comprehend numbers with kilo, Mega, Giga suffix
+kiloToInt :: String -> Int
+kiloToInt cs
+    | elem (last cs) ['0'..'9'] = read cs
+    | otherwise = pref cs * suf cs
+    where pref = read . init
+          suf = floor . f . last
+          f 'k' = 1e3
+          f 'M' = 1e6
+          f 'G' = 1e9
+          f  _ = error "Not a number."
 
 exit = exitWith(ExitSuccess)
 
@@ -95,7 +109,7 @@ main = do
       then putStrLn "usage: virus <R> <N> <s>\nR replication number\nN population size\ns number of steps\ni initial infected" >> exitWith(ExitFailure 1)
       else putStrLn $ "# R=" ++ pars !! 0 ++ ", N=" ++ pars !! 1 ++ ", s=" ++ pars !! 2 ++ ", i=" ++ pars !!3
     let rIni = read . head $ pars :: Double
-    let (nTot:steps:iIni:[]) = map read . tail $ pars :: [Int]
+    let (nTot:steps:iIni:_) = map kiloToInt . tail $ pars :: [Int]
 --    let results = simple rIni steps
     let test = limited rIni nTot steps
     putStrLn.pretty.transpose $ results rIni nTot steps iIni
